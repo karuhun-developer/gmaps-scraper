@@ -257,10 +257,18 @@ async function extractAboutFeatures(page, fields) {
 
   try {
     // Click About tab
-    const aboutTab = await page.$('button[aria-label*="Tentang"], button[aria-label*="About"]');
+    const aboutTabSelectors = 'button:has-text("Tentang"), button:has-text("About"), div[role="tab"]:has-text("Tentang"), div[role="tab"]:has-text("About")';
+    const aboutTab = await page.$(aboutTabSelectors);
+    
     if (aboutTab) {
+      console.log('[Scraper] Found About tab, clicking...');
       await aboutTab.click();
-      await randomDelay(1000, 2000);
+      await randomDelay(1500, 2500);
+    } else {
+      console.log('[Scraper] About tab NOT found with selectors:', aboutTabSelectors);
+      if (process.env.GMAPS_DEBUG === '1') {
+        await page.screenshot({ path: `debug-about-tab-missing-${Date.now()}.png` }).catch(() => {});
+      }
     }
 
     // Extract all feature sections from About tab
@@ -276,18 +284,26 @@ async function extractAboutFeatures(page, fields) {
         const title = titleEl.textContent?.trim() || '';
         const items = [];
 
+        // In the new Google Maps UI, the feature list items are `li.hpLkke`
         const itemEls = section.querySelectorAll('li.hpLkke');
         itemEls.forEach((item) => {
-          const label = item.querySelector('span.fontBodyMedium')?.textContent?.trim();
-          // Check for checkmark (available) vs X (unavailable)
-          const svgEl = item.querySelector('svg');
-          const svgTitle = svgEl?.querySelector('title')?.textContent || '';
-          const isAvailable =
-            !svgTitle.toLowerCase().includes('tidak') &&
-            !svgTitle.toLowerCase().includes('no') &&
-            !svgTitle.toLowerCase().includes('x');
-
+          const spans = item.querySelectorAll('span');
+          if (spans.length === 0) return;
+          
+          // The label text is typically in the last span (which also has an aria-label)
+          const textSpan = spans[spans.length - 1];
+          const label = textSpan?.textContent?.trim();
+          
           if (label) {
+            // Determine availability by checking if the aria-label contains "tidak" or "no "
+            const ariaLabel = textSpan.getAttribute('aria-label') || '';
+            const isUnavailable = ariaLabel.toLowerCase().includes('tidak') || ariaLabel.toLowerCase().includes('no ');
+            
+            // Fallback: check if the first span (the Material symbol) is '' (crossed circle)
+            const iconSpan = spans[0];
+            const iconText = iconSpan?.textContent?.trim() || '';
+            const isAvailable = !isUnavailable && iconText !== '';
+
             items.push({ label, available: isAvailable });
           }
         });
@@ -472,9 +488,17 @@ export async function scrapeGoogleMaps(opts = {}) {
 
   if (!query) throw new Error('Query is required');
 
-  // Auto-detect headless: if no DISPLAY env var and headless not explicitly set to false, use headless
+  // Auto-detect headless: on Linux without a display server, headed mode won't work.
+  // On Windows/macOS, DISPLAY is never set — skip the check and honour the headless param as-is.
+  const isLinux = process.platform === 'linux';
   const hasDisplay = !!process.env.DISPLAY;
-  const useHeadless = headless === false && hasDisplay ? false : (headless === false ? (() => { console.warn('[Scraper] No DISPLAY detected, falling back to headless=true. Use xvfb-run for headed mode.'); return true; })() : headless);
+  let useHeadless;
+  if (isLinux && !hasDisplay && headless === false) {
+    console.warn('[Scraper] No DISPLAY detected on Linux, falling back to headless=true. Use xvfb-run for headed mode.');
+    useHeadless = true;
+  } else {
+    useHeadless = headless;
+  }
 
   console.log(`[Scraper] Starting: "${query}" | total=${total} | fields=${fields.join(',')} | headless=${useHeadless}`);
 
@@ -516,32 +540,141 @@ export async function scrapeGoogleMaps(opts = {}) {
 
   const results = [];
 
-  try {
-    // Go to Google Maps
-    console.log('[Scraper] Navigating to Google Maps...');
-    await page.goto('https://www.google.com/maps', {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000,
-    });
-    await randomDelay(1500, 3000);
-
-    // Handle cookie consent if present
-    const acceptBtn = await page.$('button[aria-label*="Terima"], button[aria-label*="Accept all"]');
-    if (acceptBtn) {
-      await acceptBtn.click();
-      await randomDelay(800, 1500);
+  // Helper: save a debug screenshot if GMAPS_DEBUG=1 is set
+  const debugShot = async (label) => {
+    if (process.env.GMAPS_DEBUG === '1') {
+      const path = `debug-${label}-${Date.now()}.png`;
+      await page.screenshot({ path, fullPage: false }).catch(() => {});
+      console.log(`[Scraper] Screenshot saved: ${path}`);
     }
+  };
 
-    // Search for the query
-    console.log(`[Scraper] Searching for: "${query}"`);
-    await page.waitForSelector(SELECTORS.searchBox, { timeout: 15000 });
-    await humanType(page, SELECTORS.searchBox, query, { minDelay: 60, maxDelay: 160 });
-    await randomDelay(400, 800);
-    await page.keyboard.press('Enter');
+  // Helper: dismiss consent/cookie dialogs
+  const dismissConsent = async () => {
+    const selectors = [
+      'button[aria-label*="Terima semua"]',
+      'button[aria-label*="Terima"]',
+      'button[aria-label*="Accept all"]',
+      'button[aria-label*="Accept All"]',
+      'form[action*="consent.google.com"] button',
+      'form[action*="consent"] button[value="1"]',
+      'button#L2AGLb',
+      'button.tHlp8d',
+    ];
+    for (const sel of selectors) {
+      try {
+        const btn = await page.$(sel);
+        if (btn && await btn.isVisible()) {
+          console.log(`[Scraper] Dismissing consent: ${sel}`);
+          await btn.click();
+          await randomDelay(1000, 2000);
+          return true;
+        }
+      } catch { /* ignore */ }
+    }
+    return false;
+  };
+
+  try {
+    // Navigate directly to search URL — more reliable than typing in the search box
+    const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}`;
+    console.log(`[Scraper] Navigating to: ${searchUrl}`);
+    await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await randomDelay(2000, 4000);
 
-    // Wait for results panel
-    await page.waitForSelector(SELECTORS.resultsPanel, { timeout: 15000 }).catch(() => {});
+    // Handle consent (may appear on first visit / region redirect)
+    await dismissConsent();
+
+    const currentUrl = page.url();
+    if (currentUrl.includes('consent.google.com') || currentUrl.includes('accounts.google.com')) {
+      console.log(`[Scraper] Consent redirect detected, waiting...`);
+      await debugShot('consent-page');
+      await dismissConsent();
+      await page.waitForURL('**/maps/**', { timeout: 15000 }).catch(() => {});
+      await randomDelay(2000, 3000);
+    }
+
+    await debugShot('after-navigate');
+
+    await debugShot('after-navigate');
+
+    // ── Wait for either the results feed panel OR a redirect to a place page ──
+    // Because single-result redirects can take a moment via client-side routing,
+    // we race the two conditions instead of checking immediately.
+    const viewState = await Promise.race([
+      page.waitForSelector(SELECTORS.resultsPanel, { timeout: 20000 }).then(() => 'list'),
+      page.waitForURL('**/maps/place/**', { timeout: 20000 }).then(() => 'place')
+    ]).catch(() => 'timeout');
+
+    if (viewState === 'place') {
+      console.log('[Scraper] Single result detected — scraping place directly from current page...');
+      const currentPlaceUrl = page.url();
+      try {
+        const placeData = await scrapeSinglePlace(page, currentPlaceUrl, {
+          fields,
+          maxReviews,
+          scrollDelay,
+          clickDelay,
+          scrollDistance,
+        });
+        placeData.url = currentPlaceUrl;
+        results.push(placeData);
+      } catch (err) {
+        console.error(`[Scraper] Error scraping direct place:`, err.message);
+        results.push({ url: currentPlaceUrl, error: err.message });
+      }
+      // Skip the list-scraping phase entirely
+      console.log(`[Scraper] Done! Scraped ${results.length} places`);
+      return results;
+    }
+
+    if (viewState === 'timeout') {
+      // Fallback: try classic search-box approach
+      console.log('[Scraper] Results panel not found, falling back to search-box...');
+      await debugShot('no-results-panel');
+      await page.goto('https://www.google.com/maps', { waitUntil: 'domcontentloaded', timeout: 30000 });
+      await randomDelay(2000, 3000);
+      await dismissConsent();
+
+      const searchBoxVisible = await page
+        .waitForSelector(SELECTORS.searchBox, { timeout: 20000 })
+        .then(() => true)
+        .catch(() => false);
+
+      if (!searchBoxVisible) {
+        await debugShot('no-searchbox');
+        throw new Error(
+          'Google Maps search box not found. The page may be blocked by a consent dialog. ' +
+          'Set GMAPS_DEBUG=1 and re-run to capture a screenshot for diagnosis.'
+        );
+      }
+
+      console.log(`[Scraper] Searching via search box: "${query}"`);
+      await humanType(page, SELECTORS.searchBox, query, { minDelay: 60, maxDelay: 160 });
+      await randomDelay(400, 800);
+      await page.keyboard.press('Enter');
+      await randomDelay(2500, 4500);
+
+      // After search, check again if we landed on a single place page
+      const afterSearchUrl = page.url();
+      if (afterSearchUrl.includes('/maps/place/')) {
+        console.log('[Scraper] Single result after search — scraping place directly...');
+        try {
+          const placeData = await scrapeSinglePlace(page, afterSearchUrl, {
+            fields, maxReviews, scrollDelay, clickDelay, scrollDistance,
+          });
+          placeData.url = afterSearchUrl;
+          results.push(placeData);
+        } catch (err) {
+          results.push({ url: afterSearchUrl, error: err.message });
+        }
+        console.log(`[Scraper] Done! Scraped ${results.length} places`);
+        return results;
+      }
+
+      await page.waitForSelector(SELECTORS.resultsPanel, { timeout: 20000 }).catch(() => {});
+    }
+
     await randomDelay(1000, 2000);
 
     // Collect result URLs by scrolling the panel
