@@ -53,6 +53,7 @@ Scrape data tempat dari Google Maps
 | `address` | Alamat lengkap |
 | `phone` | Nomor telepon |
 | `website` | URL website |
+| `reservation` | Link reservasi |
 | `plusCode` | Google Plus Code |
 | `priceLevel` | Level harga ($, $$, $$$) |
 | `hours` | Jam buka per hari |

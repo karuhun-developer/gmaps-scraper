@@ -149,6 +149,7 @@ gmaps.get('/fields', (c) => {
         priceLevel: 'Price level (e.g. $$, $$$)',
         hours: 'Business hours per day',
         coordinates: 'Latitude & longitude',
+        reservation: 'Reservation link',
       },
       content: {
         reviews: `Last N reviews text (set maxReviews, default 10)`,
