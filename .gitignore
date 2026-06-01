@@ -1,5 +1,12 @@
 node_modules/
 .env
 *.log
+
+# One Drive files
+*OneDrive*
+
+# Debug files
 debug-after-*
+debug-jardin.json
+debug-jardin-*.json
 debug-about-*.json

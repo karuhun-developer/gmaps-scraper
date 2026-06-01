@@ -35,7 +35,7 @@ const HEADLESS = hasFlag('headless'); // pass --headless to skip headed mode
 const ALL_FIELDS = [
   'name', 'category', 'rating', 'address', 'phone', 'website',
   'plusCode', 'priceLevel', 'hours', 'coordinates', 'reviews',
-  'email', 'menu', 'accessibility', 'serviceOptions', 'highlights',
+  'email', 'menu', 'reservation', 'accessibility', 'serviceOptions', 'highlights',
   'offerings', 'foodOptions', 'amenities', 'crowd', 'planning',
   'payments', 'parking', 'children', 'pets',
 ];

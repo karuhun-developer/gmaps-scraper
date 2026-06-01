@@ -78,16 +78,56 @@ async function extractBasicInfo(page, fields) {
 
   // Price level
   if (fields.includes('priceLevel')) {
-    result.priceLevel = await page
-      .$eval('[aria-label*="Harga:"], [aria-label*="Price:"]', (el) =>
-        el.getAttribute('aria-label')?.replace(/Harga:|Price:/gi, '').trim()
-      )
-      .catch(() => null);
+    result.priceLevel = await page.evaluate(() => {
+      // 1. Classic aria-label match
+      const el = document.querySelector('[aria-label*="Harga:"], [aria-label*="Price:"]');
+      if (el) return el.getAttribute('aria-label').replace(/Harga:|Price:/gi, '').trim();
+      
+      // 2. Look in the header string next to category (e.g., "Rp 50–100 rb")
+      const header = document.querySelector('h1')?.parentElement?.parentElement;
+      if (header) {
+         const text = header.textContent;
+         // Match Rp followed by numbers, dots, commas, hyphens, en-dashes, optionally followed by 'rb'
+         const match = text.match(/(Rp\s*[\d.,\-\–]+(\s*rb)?|\$\$\$?\$?)/i);
+         if (match) return match[1];
+      }
+      
+      // 3. Look for the crowdsourced "Rp X-Y per orang" block
+      const allDivs = document.querySelectorAll('div');
+      for (const d of allDivs) {
+         if (d.textContent && d.textContent.includes(' per orang') && (d.textContent.includes('Rp') || d.textContent.includes('IDR'))) {
+            return d.textContent.trim().split('Dilaporkan')[0].trim();
+         }
+      }
+      return null;
+    }).catch(() => null);
   }
 
-  // Hours
+  // Hours (simplified to grab current status like "Buka · Tutup pukul 23.30")
   if (fields.includes('hours')) {
-    result.hours = await extractHours(page);
+    result.hours = await page.evaluate(() => {
+       const allDivs = document.querySelectorAll('div, span, button');
+        for (const el of allDivs) {
+          const text = el.textContent?.trim() || '';
+          if (text.match(/(Buka|Tutup|Open|Closed)\s*[·⋅]\s*(Buka|Tutup|Open|Closed).*?(pukul|at|until)\s*\d/i)) {
+             return text.split('')[0].split('Jam buka')[0].split('Tutup segera')[0].replace(/^.*?Buka/, 'Buka').replace(/^.*?Tutup/, 'Tutup').replace(/^.*?Open/, 'Open').replace(/^.*?Closed/, 'Closed').trim();
+          }
+       }
+       return null;
+    }).catch(() => null);
+  }
+
+  // Reservation Link
+  if (fields.includes('reservation')) {
+    result.reservation = await page.evaluate(() => {
+       const links = Array.from(document.querySelectorAll('a.CsEnBe, a[data-item-id^="action:"]'));
+       for (const a of links) {
+          if (a.textContent.includes('Reservasi') || a.textContent.includes('Reservation') || a.textContent.includes('Book') || a.textContent.includes('Pesan')) {
+             return a.href;
+          }
+       }
+       return null;
+    }).catch(() => null);
   }
 
   // Coordinates from URL
