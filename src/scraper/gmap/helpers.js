@@ -45,10 +45,10 @@ export const humanScroll = async (page, opts = {}) => {
     steps = 5,
     minDelay = 100,
     maxDelay = 400,
-    direction = 'down',
+    direction = "down",
   } = opts;
 
-  const scrollAmount = direction === 'down' ? distance : -distance;
+  const scrollAmount = direction === "down" ? distance : -distance;
   const stepSize = scrollAmount / steps;
 
   for (let i = 0; i < steps; i++) {
@@ -100,11 +100,11 @@ export const scrollPanel = async (page, panelSelector, opts = {}) => {
         if (panel) {
           panel.scrollBy({
             top: distance + Math.random() * 100 - 50,
-            behavior: 'smooth',
+            behavior: "smooth",
           });
         }
       },
-      { selector: panelSelector, distance: scrollDistance }
+      { selector: panelSelector, distance: scrollDistance },
     );
 
     await randomDelay(scrollDelay, scrollDelay * 1.5);
@@ -120,25 +120,25 @@ export const scrollPanel = async (page, panelSelector, opts = {}) => {
 export const applyStealthSettings = async (context) => {
   await context.addInitScript(() => {
     // Override webdriver detection
-    Object.defineProperty(navigator, 'webdriver', {
+    Object.defineProperty(navigator, "webdriver", {
       get: () => undefined,
     });
 
     // Override plugins
-    Object.defineProperty(navigator, 'plugins', {
+    Object.defineProperty(navigator, "plugins", {
       get: () => [1, 2, 3, 4, 5],
     });
 
     // Override languages
-    Object.defineProperty(navigator, 'languages', {
-      get: () => ['en-US', 'en', 'id-ID', 'id'],
+    Object.defineProperty(navigator, "languages", {
+      get: () => ["en-US", "en", "id-ID", "id"],
     });
 
     // Override permissions
     const originalQuery = window.navigator.permissions?.query;
     if (originalQuery) {
       window.navigator.permissions.query = (parameters) =>
-        parameters.name === 'notifications'
+        parameters.name === "notifications"
           ? Promise.resolve({ state: Notification.permission })
           : originalQuery(parameters);
     }
@@ -152,7 +152,7 @@ export const applyStealthSettings = async (context) => {
     const getContext = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (type, ...args) {
       const ctx = getContext.call(this, type, ...args);
-      if (type === '2d' && ctx) {
+      if (type === "2d" && ctx) {
         const fillText = ctx.fillText.bind(ctx);
         ctx.fillText = function (...args) {
           const noise = Math.random() * 0.01;
