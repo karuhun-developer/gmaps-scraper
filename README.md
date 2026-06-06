@@ -15,6 +15,7 @@ REST API untuk scraping data Google Maps menggunakan **Playwright** + **Hono**, 
 ```bash
 npm install
 npx playwright install chromium
+npx playwright install-deps
 npm start
 ```
 
@@ -25,56 +26,59 @@ Server berjalan di `http://localhost:3000`
 ## Endpoints
 
 ### `GET /`
+
 Info API + contoh penggunaan
 
 ### `POST /api/v1/gmaps`
+
 Scrape data tempat dari Google Maps
 
 **Request Body:**
 
-| Field | Type | Default | Deskripsi |
-|-------|------|---------|-----------|
-| `query` | `string` | **required** | Kata kunci pencarian |
-| `total` | `number` | `10` | Jumlah tempat yang di-scrape (max 100) |
-| `fields` | `string[]` | `["name","address","phone","rating"]` | Field yang ingin diambil |
-| `maxReviews` | `number` | `10` | Jumlah ulasan per tempat |
-| `scrollDelay` | `number` | `800` | Delay antar scroll (ms) |
-| `scrollDistance` | `number` | `400` | Jarak scroll per langkah (px) |
-| `clickDelay` | `number` | `300` | Delay setelah klik (ms) |
-| `headless` | `boolean` | `false` | Mode headless browser |
+| Field            | Type       | Default                               | Deskripsi                              |
+| ---------------- | ---------- | ------------------------------------- | -------------------------------------- |
+| `query`          | `string`   | **required**                          | Kata kunci pencarian                   |
+| `total`          | `number`   | `10`                                  | Jumlah tempat yang di-scrape (max 100) |
+| `fields`         | `string[]` | `["name","address","phone","rating"]` | Field yang ingin diambil               |
+| `maxReviews`     | `number`   | `10`                                  | Jumlah ulasan per tempat               |
+| `scrollDelay`    | `number`   | `800`                                 | Delay antar scroll (ms)                |
+| `scrollDistance` | `number`   | `400`                                 | Jarak scroll per langkah (px)          |
+| `clickDelay`     | `number`   | `300`                                 | Delay setelah klik (ms)                |
+| `headless`       | `boolean`  | `false`                               | Mode headless browser                  |
 
 **Available Fields:**
 
-| Field | Deskripsi |
-|-------|-----------|
-| `name` | Nama bisnis |
-| `category` | Kategori/jenis usaha |
-| `rating` | Rating bintang rata-rata |
-| `address` | Alamat lengkap |
-| `phone` | Nomor telepon |
-| `website` | URL website |
-| `reservation` | Link reservasi |
-| `plusCode` | Google Plus Code |
-| `priceLevel` | Level harga ($, $$, $$$) |
-| `hours` | Jam buka per hari |
-| `coordinates` | Latitude & longitude |
-| `reviews` | N ulasan terbaru (text, rating, tanggal, penulis) |
-| `email` | Email dari website (lambat, perlu `website`) |
-| `menu` | Item menu atau link menu eksternal |
-| `serviceOptions` | Dine-in, Takeout, Delivery, dll |
-| `accessibility` | Akses kursi roda, parkir, dll |
-| `highlights` | Keunggulan/fasilitas |
-| `offerings` | Penawaran (alkohol, kopi, dll) |
-| `foodOptions` | Pilihan makanan (vegetarian, halal, dll) |
-| `amenities` | Fasilitas tambahan |
-| `crowd` | Tipe suasana/keramaian |
-| `planning` | Reservasi, LGBTQ+ friendly, dll |
-| `payments` | Metode pembayaran |
-| `parking` | Opsi parkir |
-| `children` | Ramah anak |
-| `pets` | Kebijakan hewan peliharaan |
+| Field            | Deskripsi                                         |
+| ---------------- | ------------------------------------------------- |
+| `name`           | Nama bisnis                                       |
+| `category`       | Kategori/jenis usaha                              |
+| `rating`         | Rating bintang rata-rata                          |
+| `address`        | Alamat lengkap                                    |
+| `phone`          | Nomor telepon                                     |
+| `website`        | URL website                                       |
+| `reservation`    | Link reservasi                                    |
+| `plusCode`       | Google Plus Code                                  |
+| `priceLevel`     | Level harga ($, $$, $$$)                          |
+| `hours`          | Jam buka per hari                                 |
+| `coordinates`    | Latitude & longitude                              |
+| `reviews`        | N ulasan terbaru (text, rating, tanggal, penulis) |
+| `email`          | Email dari website (lambat, perlu `website`)      |
+| `menu`           | Item menu atau link menu eksternal                |
+| `serviceOptions` | Dine-in, Takeout, Delivery, dll                   |
+| `accessibility`  | Akses kursi roda, parkir, dll                     |
+| `highlights`     | Keunggulan/fasilitas                              |
+| `offerings`      | Penawaran (alkohol, kopi, dll)                    |
+| `foodOptions`    | Pilihan makanan (vegetarian, halal, dll)          |
+| `amenities`      | Fasilitas tambahan                                |
+| `crowd`          | Tipe suasana/keramaian                            |
+| `planning`       | Reservasi, LGBTQ+ friendly, dll                   |
+| `payments`       | Metode pembayaran                                 |
+| `parking`        | Opsi parkir                                       |
+| `children`       | Ramah anak                                        |
+| `pets`           | Kebijakan hewan peliharaan                        |
 
 ### `GET /api/v1/gmaps/fields`
+
 Daftar semua field yang tersedia beserta deskripsinya
 
 ---
@@ -82,6 +86,7 @@ Daftar semua field yang tersedia beserta deskripsinya
 ## Contoh Penggunaan
 
 ### Basic (nama, alamat, telepon, rating)
+
 ```bash
 curl -X POST http://localhost:3000/api/v1/gmaps \
   -H "Content-Type: application/json" \
@@ -93,6 +98,7 @@ curl -X POST http://localhost:3000/api/v1/gmaps \
 ```
 
 ### Lengkap (semua field)
+
 ```bash
 curl -X POST http://localhost:3000/api/v1/gmaps \
   -H "Content-Type: application/json" \
@@ -113,6 +119,7 @@ curl -X POST http://localhost:3000/api/v1/gmaps \
 ```
 
 ### Headless mode (lebih cepat, tidak ada jendela browser)
+
 ```bash
 curl -X POST http://localhost:3000/api/v1/gmaps \
   -H "Content-Type: application/json" \
