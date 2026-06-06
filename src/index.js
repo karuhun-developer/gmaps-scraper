@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
@@ -6,7 +7,11 @@ import { cors } from "hono/cors";
 import gmapsRoute from "./routes/gmaps.js";
 
 const app = new Hono();
-const PORT = process.env.PORT || 3000;
+
+// Load configuration from environment variables
+const APP_PORT = process.env.PORT || 3000;
+const APP_HOST = process.env.HOST || "127.0.0.1";
+
 
 // Global middleware
 app.use("*", logger());
@@ -108,21 +113,21 @@ app.onError((err, c) => {
 });
 
 // Start server
-serve({ fetch: app.fetch, port: PORT }, () => {
+serve({ fetch: app.fetch, port: APP_PORT, hostname: APP_HOST }, () => {
   console.log("");
   console.log("╔══════════════════════════════════════════════════╗");
   console.log("║         Google Maps Scraper API v1.0.0           ║");
   console.log("╠══════════════════════════════════════════════════╣");
-  console.log(`║  Server running at: http://localhost:${PORT}         ║`);
+  console.log(`║  Server running at: http://${APP_HOST}:${APP_PORT}         ║`);
   console.log("║                                                   ║");
   console.log("║  Endpoints:                                       ║");
-  console.log(`║    GET  http://localhost:${PORT}/                  ║`);
-  console.log(`║    POST http://localhost:${PORT}/api/v1/gmaps      ║`);
-  console.log(`║    GET  http://localhost:${PORT}/api/v1/gmaps/fields ║`);
+  console.log(`║    GET  http://${APP_HOST}:${APP_PORT}/                  ║`);
+  console.log(`║    POST http://${APP_HOST}:${APP_PORT}/api/v1/gmaps      ║`);
+  console.log(`║    GET  http://${APP_HOST}:${APP_PORT}/api/v1/gmaps/fields ║`);
   console.log("╚══════════════════════════════════════════════════╝");
   console.log("");
   console.log("Example cURL:");
-  console.log(`curl -X POST http://localhost:${PORT}/api/v1/gmaps \\`);
+  console.log(`curl -X POST http://${APP_HOST}:${APP_PORT}/api/v1/gmaps \\`);
   console.log(`  -H "Content-Type: application/json" \\`);
   console.log(
     `  -d '{"query":"restoran padang jakarta","total":3,"fields":["name","address","phone","rating","reviews"],"maxReviews":5}'`,

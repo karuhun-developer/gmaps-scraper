@@ -3,6 +3,37 @@ import { scrapeGoogleMaps } from "../scraper/gmaps.js";
 
 const gmaps = new Hono();
 
+const APP_SECRET_KEY = process.env.SECRET_KEY || "";
+
+// Auth Middleware
+gmaps.use("*", async (c, next) => {
+  const headerKey = c.req.header("X-API-KEY");
+  let bodyKey;
+
+  if (
+    c.req.method === "POST" ||
+    c.req.method === "PUT" ||
+    c.req.method === "PATCH"
+  ) {
+    try {
+      const clonedReq = c.req.raw.clone();
+      const body = await clonedReq.json();
+      bodyKey = body?.key;
+    } catch (e) {
+      // Ignore JSON parse errors
+    }
+  }
+
+  if (headerKey !== APP_SECRET_KEY && bodyKey !== APP_SECRET_KEY) {
+    return c.json(
+      { success: false, error: "Unauthorized: Invalid API Key" },
+      401,
+    );
+  }
+
+  await next();
+});
+
 /**
  * POST /api/v1/gmaps
  *
